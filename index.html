@@ -1,0 +1,103 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <div id="chartContainer" style="height: 800px; width:80%;"></div>
+
+    <div id="detector" class="vague">
+        <div class="pitch"><span id="pitch">--</span>Hz</div>
+        <div class="note"><span id="note">--</span></div>
+        <canvas id="output" width=300 height=42></canvas>
+        <div id="detune"><span id="detune_amt">--</span><span id="flat">cents &#9837;</span><span id="sharp">cents &#9839;</span></div>
+    </div>
+
+    <script>
+        window.onload = function () {
+
+
+        }
+    </script>
+</head>
+<body>
+<script src="yin.min.js"></script>
+
+<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+<script>
+    var pitches = [];
+    var MIN_PITCH = 94;
+    var MAX_PITCH = 400
+    var MAX_DATA_LENGTH = 100;
+    var FFT_SIZE = Math.pow(2, 10);
+    var MIN_DECIBELS = -350;
+    var step = 0;
+
+
+    var chart = new CanvasJS.Chart("chartContainer", {
+        title :{
+            text: "Voice Pitch"
+        },
+        data: [{
+            type: "line",
+            dataPoints: pitches
+        }],
+        axisY:{
+            minimum: 20,  // Humans cant hear less than this
+            maximum: MAX_PITCH
+        },
+
+    });
+
+    function successCallback(stream) {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext
+        var audioContext = new AudioContext()
+
+        var analyser = audioContext.createAnalyser()
+        analyser.minDecibels = MIN_DECIBELS;
+        analyser.fftSize = FFT_SIZE;
+
+        var sampleRate = audioContext.sampleRate
+        var data = new Float32Array(analyser.fftSize)
+
+        function step() {
+            requestAnimationFrame(step)
+            analyser.getFloatTimeDomainData(data)
+
+            var frequency = window.yin(data, sampleRate)
+            var pitch = frequency;
+            window.step++;
+            if (pitch < MAX_PITCH && pitch > MIN_PITCH){
+                window.pitches.push({x: window.step, y: pitch })
+            }
+            else{
+                window.pitches.push({x: window.step, y: null })
+            }
+
+            if (pitches.length > MAX_DATA_LENGTH) {
+                pitches.shift();
+            }
+            chart.render();
+
+
+        }
+
+        var mediaStreamSource = audioContext.createMediaStreamSource(stream)
+        mediaStreamSource.connect(analyser)
+
+        requestAnimationFrame(step)
+    }
+
+    function errorCallback(err) {
+        alert(err)
+    }
+
+    var constraints = {
+        audio: true,
+    }
+    navigator.getUserMedia(constraints, successCallback, errorCallback)
+
+
+
+</script>
+
+
+</body>
+</html>
